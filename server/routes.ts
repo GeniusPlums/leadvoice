@@ -6,6 +6,10 @@ import { z } from "zod";
 import { leadInsertSchema, leadSelectSchema } from "@shared/schema";
 // Import from OpenAI implementation instead of Google Gemini
 import { analyzeLeadData, analyzeLeadQuality } from "./openai";
+import OpenAI from "openai";
+
+// the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -305,6 +309,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  // AI-powered monologue analysis for lead extraction
+  app.post(`${apiPrefix}/ai/analyze-monologue`, async (req, res) => {
+    try {
+      const { monologue } = req.body;
+
+      if (!monologue || typeof monologue !== 'string') {
+        return res.status(400).json({
+          message: 'Missing or invalid monologue in request body',
+        });
+      }
+      
+      console.log('Processing full monologue for lead extraction...');
+      
+      try {
+        // Use OpenAI to analyze the complete monologue
+        const prompt = `
+          You are a specialized lead extraction assistant for sales professionals. 
+          Analyze this complete monologue from a sales person and extract ALL lead information.
+          
+          MONOLOGUE: "${monologue}"
+          
+          Identify and extract the following details from the monologue:
+          1. The lead's first name and last name (required - if not explicitly clear, make an educated guess)
+          2. Their job title (if mentioned)
+          3. Their company name (required - if not explicitly clear, make an educated guess)
+          4. Email address (if mentioned)
+          5. Phone number (if mentioned, ensure it's correctly formatted)
+          6. A brief summary of key points about this lead (in 1-2 sentences)
+          
+          Respond with a clean JSON object containing ONLY these fields:
+          {
+            "firstName": "...",
+            "lastName": "...",
+            "title": "...",
+            "company": "...",
+            "email": "...",
+            "phone": "...",
+            "summary": "Brief summary of important points"            
+          }
+          
+          IMPORTANT: Pay special attention to phrases like "called as [Name]" or "from [Company]" for accurate extraction.
+          If a field is genuinely not present in the monologue, return an empty string for that field.
+        `;
+        
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" }
+        });
+        
+        const content = response.choices[0].message.content;
+        if (!content) {
+          throw new Error('Empty response from OpenAI');
+        }
+        
+        const extractedData = JSON.parse(content);
+        console.log('AI lead extraction complete:', extractedData);
+        
+        return res.json(extractedData);
+      } catch (aiError) {
+        console.warn('AI lead extraction failed, using fallback:', aiError);
+        
+        // Fallback to regex-based extraction
+        const extractedData = {
+          firstName: '',
+          lastName: '',
+          title: '',
+          company: '',
+          email: '',
+          phone: '',
+          summary: 'AI analysis unavailable. Basic extraction performed.',
+          _fallback: true
+        };
+        
+        // Pattern for name after "called as"
+        const calledAsPattern = /called\s+(?:as\s+)?([A-Z][a-z]+)\s+([A-Z][a-z]+)/i;
+        const calledAsMatch = monologue.match(calledAsPattern);
+        if (calledAsMatch && calledAsMatch.length >= 3) {
+          extractedData.firstName = calledAsMatch[1];
+          extractedData.lastName = calledAsMatch[2];
+        } else {
+          // Try general name pattern
+          const namePattern = /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i;
+          const nameMatch = monologue.match(namePattern);
+          if (nameMatch && nameMatch.length >= 3) {
+            extractedData.firstName = nameMatch[1];
+            extractedData.lastName = nameMatch[2];
+          }
+        }
+        
+        // Company pattern
+        const companyPattern = /(?:works at|from|company called)\s+([A-Z][A-Za-z0-9\s&.]+?)(?:\.|,|\s\w+\s|$)/i;
+        const companyMatch = monologue.match(companyPattern);
+        if (companyMatch && companyMatch[1]) {
+          extractedData.company = companyMatch[1].trim();
+        }
+        
+        // Title pattern
+        const titlePattern = /(?:position|title|works as|is a|is the)\s+(?:a|the)?\s+([^,.]+?)(?:\s+at|\s+in|\s+for|\s+with|\.|,|$)/i;
+        const titleMatch = monologue.match(titlePattern);
+        if (titleMatch && titleMatch[1]) {
+          extractedData.title = titleMatch[1].trim();
+        }
+        
+        // Contact info
+        const emailMatch = monologue.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
+        if (emailMatch) {
+          extractedData.email = emailMatch[0];
+        }
+        
+        const phoneMatch = monologue.match(/(\(?\d{3}\)?[-.]?\d{3}[-.]?\d{4})/);
+        if (phoneMatch) {
+          extractedData.phone = phoneMatch[0];
+        }
+        
+        console.log('Using fallback lead extraction result:', extractedData);
+        return res.json(extractedData);
+      }
+    } catch (error) {
+      console.error('Error analyzing monologue:', error);
+      res.status(500).json({
+        message: 'Failed to analyze monologue',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+  
   // Analyze lead quality with AI
   app.post(`${apiPrefix}/ai/analyze-quality`, async (req, res) => {
     try {
