@@ -144,10 +144,12 @@ const LeadForm = ({ initialData, speechText, detectedTags = [], onFormChange }: 
         
         // Try to extract names with different patterns specific to conversational speech
         const namePatterns = [
+          // "called as Harshita Chawla" - very specific to the example
+          /called\s+(?:as\s+)?([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
           // "I met this sales woman called Harshita Chawla from..."
           /(?:met|with|spoke to|talked to|contacted)(?:.*?)(?:called|named|by the name of|whose name is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
           // "Harshita Chawla from Masters Union mentioned..."
-          /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s+(?:from|at|with|of)\s+([A-Za-z\s&]+)/i,
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s+(?:from|at|with|of|comes from)\s+([A-Za-z\s&]+)/i,
           // Standard name extraction as fallback
           /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i
         ];
@@ -158,6 +160,7 @@ const LeadForm = ({ initialData, speechText, detectedTags = [], onFormChange }: 
           if (match && match.length >= 3) {
             analysisResult.firstName = match[1]; 
             analysisResult.lastName = match[2];
+            console.log('Name match found:', match[1], match[2]);
             break;
           }
         }
@@ -165,6 +168,10 @@ const LeadForm = ({ initialData, speechText, detectedTags = [], onFormChange }: 
         // Try to extract company if not already present
         if (!analysisResult.company) {
           const companyPatterns = [
+            // "organization called Masters Union" - very specific to example
+            /(?:organization|organisation|company|business|firm)\s+called\s+([A-Z][A-Za-z0-9\s&.]+?)(?:\s+and|\.|,|\s\w+\s|$)/i,
+            // "comes from the organization called Masters Union"
+            /(?:from|at|with|works at|works for|representing|employed by|employed at|comes from)\s+(?:the\s+)?(?:organization|organisation|company|business|firm)?\s+(?:called\s+)?([A-Z][A-Za-z0-9\s&.]+?)(?:\s+and|\.|,|\s\w+\s|$)/i,
             // "from Masters Union"
             /(?:from|at|with|works at|works for|representing|employed by|employed at)\s+([A-Z][A-Za-z0-9\s&.]+?)(?:\.|,|\s\w+\s|$)/i,
             // "Masters Union representative"
@@ -175,9 +182,22 @@ const LeadForm = ({ initialData, speechText, detectedTags = [], onFormChange }: 
             const match = speechText.match(pattern);
             if (match && match[1]) {
               analysisResult.company = match[1].trim();
+              console.log('Company match found:', match[1]);
               break;
             }
           }
+        }
+      }
+      
+      // Fix for when first name might be set incorrectly to "met this"
+      if (analysisResult.firstName === 'met this' || analysisResult.firstName === 'I met this' || analysisResult.firstName === 'so I met this') {
+        // Try to extract from notes again with the most specific pattern
+        const noteText = analysisResult.notes || '';
+        const nameMatch = noteText.match(/called\s+(?:as\s+)?([A-Z][a-z]+)\s+([A-Z][a-z]+)/i);
+        if (nameMatch && nameMatch.length >= 3) {
+          console.log('Found name in fallback regex:', nameMatch[1], nameMatch[2]);
+          analysisResult.firstName = nameMatch[1];
+          analysisResult.lastName = nameMatch[2];
         }
       }
       
