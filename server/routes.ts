@@ -204,10 +204,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log('Analyzing speech text with AI...');
-      const analysisResult = await analyzeLeadData(speechText);
-      console.log('AI analysis complete:', analysisResult);
-      res.json(analysisResult);
+      try {
+        console.log('Analyzing speech text with AI...');
+        const analysisResult = await analyzeLeadData(speechText);
+        console.log('AI analysis complete:', analysisResult);
+        return res.json(analysisResult);
+      } catch (aiError) {
+        console.warn('AI analysis failed, using fallback:', aiError);
+        
+        // Fallback implementation will go here
+        // We'll add it in the next step
+        
+        return res.status(500).json({
+          message: 'Failed to analyze speech with AI',
+          error: aiError instanceof Error ? aiError.message : String(aiError),
+        });
+      }
     } catch (error) {
       console.error('Error analyzing speech with AI:', error);
       res.status(500).json({

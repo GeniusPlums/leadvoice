@@ -73,19 +73,26 @@ export async function analyzeLeadData(speechText: string) {
     }
 
     const prompt = `
-    Extract the following information from this sales lead captured via speech-to-text. 
-    If information is not found, leave the field empty.
+    Extract lead information from this conversational speech where a salesperson is describing someone they met. The speech is natural and unstructured.
+    
+    For example, if the person says "I met this sales woman called Harshita Chawla from Masters Union", you should extract:
+    - firstName: "Harshita"
+    - lastName: "Chawla"
+    - company: "Masters Union"
     
     Speech text: "${speechText}"
+    
+    Extract information carefully, looking for context clues like "I met", "spoke with", "from [company]", etc.
+    If information is not explicitly found, leave the field empty.
     
     Return a JSON object with these fields:
     - firstName: The person's first name
     - lastName: The person's last name
-    - title: Their job title
+    - title: Their job title (if mentioned)
     - company: Their company name
     - email: Their email address
     - phone: Their phone number
-    - notes: Any additional information or context
+    - notes: Include the full original speech text and any additional context
     - tags: An array of relevant tags from this list: ["Hot Lead", "Demo Needed", "Tech Summit", "Follow-up", "Enterprise"]. 
       Only include tags if there is clear evidence in the text.
     `;
