@@ -8,32 +8,70 @@ if (!API_KEY) {
 
 const genAI = new GoogleGenerativeAI(API_KEY || '');
 
-// Access the model - using gemini-1.5-pro for broader compatibility
-const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-pro',
-  safetySettings: [
-    {
-      category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    },
-    {
-      category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    },
-    {
-      category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    },
-    {
-      category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    },
-  ],
-});
+// Define available models to try in order of preference
+const availableModels = [
+  'gemini-1.5-pro',
+  'gemini-pro',
+  'gemini-1.5-flash'
+];
+
+// Configure safety settings
+const safetySettings = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+];
+
+// Function to try multiple models in sequence
+async function getWorkingModel() {
+  for (const modelName of availableModels) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: modelName,
+        safetySettings
+      });
+      
+      // Test if model works with a simple prompt
+      await model.generateContent('Test');
+      console.log(`Successfully connected to model: ${modelName}`);
+      return model;
+    } catch (error) {
+      console.warn(`Model ${modelName} unavailable:`, error);
+    }
+  }
+  
+  throw new Error('No available AI models found');
+}
+
+// Initialize model - will be set on first use
+let model: any = null;
 
 // Extract information from speech text
 export async function analyzeLeadData(speechText: string) {
   try {
+    // Initialize model if not already done
+    if (!model) {
+      try {
+        model = await getWorkingModel();
+      } catch (modelError) {
+        console.error('Failed to initialize AI model:', modelError);
+        throw new Error('AI service unavailable');
+      }
+    }
+
     const prompt = `
     Extract the following information from this sales lead captured via speech-to-text. 
     If information is not found, leave the field empty.
@@ -68,7 +106,23 @@ export async function analyzeLeadData(speechText: string) {
       console.error('Error parsing JSON from AI response:', jsonError);
       throw jsonError;
     }
-  } catch (error) {
+  } catch (error: any) {
+    // If we encounter a rate limit error, wait and try with a different model
+    if (typeof error?.toString === 'function' && 
+        (error.toString().includes('Too Many Requests') || 
+         error.toString().includes('exceeded your current quota'))) {
+      console.warn('Rate limit hit, trying with fallback model...');
+      try {
+        // Force reinitialize model with next alternative
+        model = null;
+        model = await getWorkingModel();
+        // Try again with new model
+        return await analyzeLeadData(speechText);
+      } catch (fallbackError) {
+        console.error('All models failed:', fallbackError);
+        throw error; // Original error if fallback also fails
+      }
+    }
     console.error('Error analyzing lead data with AI:', error);
     throw error;
   }
@@ -77,6 +131,16 @@ export async function analyzeLeadData(speechText: string) {
 // Analyze lead quality and provide insights
 export async function analyzeLeadQuality(leadData: any) {
   try {
+    // Initialize model if not already done
+    if (!model) {
+      try {
+        model = await getWorkingModel();
+      } catch (modelError) {
+        console.error('Failed to initialize AI model:', modelError);
+        throw new Error('AI service unavailable');
+      }
+    }
+
     const prompt = `
     Analyze this sales lead and provide insights. The data is:
     
@@ -105,7 +169,23 @@ export async function analyzeLeadQuality(leadData: any) {
       console.error('Error parsing JSON from AI response:', jsonError);
       throw jsonError;
     }
-  } catch (error) {
+  } catch (error: any) {
+    // If we encounter a rate limit error, wait and try with a different model
+    if (typeof error?.toString === 'function' && 
+        (error.toString().includes('Too Many Requests') || 
+         error.toString().includes('exceeded your current quota'))) {
+      console.warn('Rate limit hit, trying with fallback model...');
+      try {
+        // Force reinitialize model with next alternative
+        model = null;
+        model = await getWorkingModel();
+        // Try again with new model
+        return await analyzeLeadQuality(leadData);
+      } catch (fallbackError) {
+        console.error('All models failed:', fallbackError);
+        throw error; // Original error if fallback also fails
+      }
+    }
     console.error('Error analyzing lead quality with AI:', error);
     throw error;
   }

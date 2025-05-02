@@ -226,12 +226,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const analysisResult = await analyzeLeadQuality(leadData);
-      res.json(analysisResult);
+      try {
+        const analysisResult = await analyzeLeadQuality(leadData);
+        return res.json(analysisResult);
+      } catch (aiError) {
+        console.warn('AI quality analysis failed, using fallback:', aiError);
+        
+        // Calculate a basic score based on completeness
+        let score = 0;
+        const fields = [
+          { name: 'firstName', weight: 15 },
+          { name: 'lastName', weight: 15 },
+          { name: 'email', weight: 20 },
+          { name: 'phone', weight: 20 },
+          { name: 'title', weight: 10 },
+          { name: 'company', weight: 10 },
+          { name: 'notes', weight: 5 }
+        ];
+        
+        fields.forEach(field => {
+          if (leadData[field.name]) {
+            score += field.weight;
+          }
+        });
+        
+        // Add points for tags
+        if (leadData.tags && Array.isArray(leadData.tags) && leadData.tags.length > 0) {
+          score += Math.min(leadData.tags.length * 5, 10); // Max 10 points for tags
+        }
+        
+        // Determine basic intent
+        let intent = 'Unknown';
+        let priority = 'Standard follow-up recommended';
+        const notes = (leadData.notes || '').toLowerCase();
+        const tags = Array.isArray(leadData.tags) ? leadData.tags : [];
+        
+        if (notes.includes('demo') || notes.includes('presentation') || tags.includes('Demo Needed')) {
+          intent = 'Demo Request';
+          priority = 'High priority follow-up recommended';
+        } else if (tags.includes('Hot Lead') || notes.includes('urgent') || notes.includes('priority')) {
+          intent = 'Urgent Inquiry';
+          priority = 'Immediate follow-up required';
+        } else if (notes.includes('follow up') || notes.includes('follow-up') || tags.includes('Follow-up')) {
+          intent = 'Follow-up Needed';
+          priority = 'Schedule follow-up call';
+        } else if (notes.includes('information') || notes.includes('info') || notes.includes('details')) {
+          intent = 'Information Request';
+          priority = 'Send product information';
+        }
+        
+        const fallbackResult = {
+          score: score,
+          intent: intent,
+          priority: priority,
+          insights: 'Analysis based on basic information completeness. AI-enhanced insights unavailable due to API limits.',
+          _fallback: true
+        };
+        
+        return res.json(fallbackResult);
+      }
     } catch (error) {
-      console.error('Error analyzing lead quality with AI:', error);
+      console.error('Error analyzing lead quality:', error);
       res.status(500).json({
-        message: 'Failed to analyze lead quality with AI',
+        message: 'Failed to analyze lead quality',
         error: error instanceof Error ? error.message : String(error),
       });
     }
