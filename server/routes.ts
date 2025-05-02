@@ -204,7 +204,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      console.log('Analyzing speech text with AI...');
       const analysisResult = await analyzeLeadData(speechText);
+      console.log('AI analysis complete:', analysisResult);
       res.json(analysisResult);
     } catch (error) {
       console.error('Error analyzing speech with AI:', error);
@@ -227,7 +229,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       try {
+        console.log('Analyzing lead quality with AI...');
         const analysisResult = await analyzeLeadQuality(leadData);
+        console.log('AI quality analysis complete:', analysisResult);
         return res.json(analysisResult);
       } catch (aiError) {
         console.warn('AI quality analysis failed, using fallback:', aiError);
@@ -283,6 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           _fallback: true
         };
         
+        console.log('Using quality analysis fallback result:', fallbackResult);
         return res.json(fallbackResult);
       }
     } catch (error) {
