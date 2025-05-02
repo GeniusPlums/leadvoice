@@ -36,45 +36,41 @@ const Sidebar = () => {
         </div>
         <div className="flex flex-col flex-grow px-4 py-4">
           <nav className="flex-1 space-y-1">
-            <Link href="/">
-              <a
-                className={cn(
-                  "flex items-center px-2 py-2 text-sm font-medium rounded-md",
-                  location === "/" 
-                    ? "bg-primary text-white" 
-                    : "text-neutral-700 hover:text-primary hover:bg-gray-50"
-                )}
-                aria-current={location === "/" ? "page" : undefined}
-              >
-                <Mic className="mr-3 h-6 w-6" />
-                Lead Capture
-              </a>
+            <Link href="/"
+              className={cn(
+                "flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                location === "/" 
+                  ? "bg-primary text-white" 
+                  : "text-neutral-700 hover:text-primary hover:bg-gray-50"
+              )}
+              aria-current={location === "/" ? "page" : undefined}
+            >
+              <Mic className="mr-3 h-6 w-6" />
+              Lead Capture
             </Link>
-            <Link href="/dashboard">
-              <a
-                className={cn(
-                  "flex items-center px-2 py-2 text-sm font-medium rounded-md",
-                  location === "/dashboard" 
-                    ? "bg-primary text-white" 
-                    : "text-neutral-700 hover:text-primary hover:bg-gray-50"
-                )}
-                aria-current={location === "/dashboard" ? "page" : undefined}
-              >
-                <LayoutDashboard className="mr-3 h-6 w-6" />
-                Dashboard
-              </a>
+            <Link href="/dashboard"
+              className={cn(
+                "flex items-center px-2 py-2 text-sm font-medium rounded-md",
+                location === "/dashboard" 
+                  ? "bg-primary text-white" 
+                  : "text-neutral-700 hover:text-primary hover:bg-gray-50"
+              )}
+              aria-current={location === "/dashboard" ? "page" : undefined}
+            >
+              <LayoutDashboard className="mr-3 h-6 w-6" />
+              Dashboard
             </Link>
-            <Link href="/dashboard">
-              <a className="flex items-center px-2 py-2 text-sm font-medium text-neutral-700 hover:text-primary hover:bg-gray-50 rounded-md">
-                <Users className="mr-3 h-6 w-6" />
-                Leads
-              </a>
+            <Link href="/dashboard"
+              className="flex items-center px-2 py-2 text-sm font-medium text-neutral-700 hover:text-primary hover:bg-gray-50 rounded-md"
+            >
+              <Users className="mr-3 h-6 w-6" />
+              Leads
             </Link>
-            <Link href="/settings">
-              <a className="flex items-center px-2 py-2 text-sm font-medium text-neutral-700 hover:text-primary hover:bg-gray-50 rounded-md">
-                <Settings className="mr-3 h-6 w-6" />
-                Settings
-              </a>
+            <Link href="/settings"
+              className="flex items-center px-2 py-2 text-sm font-medium text-neutral-700 hover:text-primary hover:bg-gray-50 rounded-md"
+            >
+              <Settings className="mr-3 h-6 w-6" />
+              Settings
             </Link>
           </nav>
           <div className="mt-auto">
