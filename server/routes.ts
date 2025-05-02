@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { json2csv } from "json-2-csv";
 import { z } from "zod";
 import { leadInsertSchema, leadSelectSchema } from "@shared/schema";
-import { analyzeLeadData, analyzeLeadQuality } from "./ai";
+// Import from OpenAI implementation instead of Google Gemini
+import { analyzeLeadData, analyzeLeadQuality } from "./openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
