@@ -191,31 +191,50 @@ const LeadForm = ({ initialData, speechText, detectedTags = [], onFormChange }: 
       
       // Check if first name contains common errors from mis-parsing
       const errorPhrases = ['met this', 'I met this', 'so I met this', 'hi', 'hi so', 'so', 'hello', 'woman', 'man'];
-      if (errorPhrases.some(phrase => analysisResult.firstName?.toLowerCase().includes(phrase.toLowerCase()))) {
-        console.log('Detected error in first name parsing:', analysisResult.firstName);
+      if (!analysisResult.firstName || !analysisResult.lastName || 
+          errorPhrases.some(phrase => analysisResult.firstName?.toLowerCase().includes(phrase.toLowerCase()))) {
+        console.log('Detected issue in name parsing or missing name, attempting to extract from notes');
         
-        // Try to extract from notes again with the most specific pattern for names after "called as"
+        // Try to extract from notes with multiple patterns to handle various formats
         const noteText = analysisResult.notes || '';
         
-        // Specific pattern for "called as Harshita Chawla"
-        const calledPattern = noteText.match(/called\s+(?:as\s+)?([A-Z][a-z]+)\s+([A-Z][a-z]+)/i);
-        if (calledPattern && calledPattern.length >= 3) {
-          console.log('Found name in specific "called as" pattern:', calledPattern[1], calledPattern[2]);
-          analysisResult.firstName = calledPattern[1];
-          analysisResult.lastName = calledPattern[2];
-        } else {
-          // Try other patterns if "called as" pattern failed
-          const otherPatterns = [
-            // Look for "named Harshita Chawla"
-            /(?:named|is|was)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
-            // Any capitalized name pattern as fallback
-            /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i
-          ];
-          
-          for (const pattern of otherPatterns) {
-            const match = noteText.match(pattern);
+        // Define comprehensive patterns for name extraction
+        const namePatterns = [
+          // Specific pattern for "called as X Y"
+          /called\s+(?:as\s+)?([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for "I met with X Y" or "I spoke to X Y"
+          /(?:met with|spoke to|talked to|met|spoke with)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for "X Y from Company"
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s+(?:from|at|with|of|works|at)/i,
+          // Pattern for "My name is X Y" or "This is X Y"
+          /(?:name is|name's|this is|I am|I'm)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for "named X Y"
+          /(?:named|is|was)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for names at the beginning of sentences
+          /^([A-Z][a-z]+)\s+([A-Z][a-z]+)/im,
+          // Simple name pattern as fallback - any properly capitalized name
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i
+        ];
+        
+        // Try each pattern until we find a match
+        let nameFound = false;
+        for (const pattern of namePatterns) {
+          const match = noteText.match(pattern);
+          if (match && match.length >= 3) {
+            console.log('Found name using pattern:', pattern, match[1], match[2]);
+            analysisResult.firstName = match[1];
+            analysisResult.lastName = match[2];
+            nameFound = true;
+            break;
+          }
+        }
+        
+        // If still no name found and we have speech text, try that as well
+        if (!nameFound && speechText) {
+          for (const pattern of namePatterns) {
+            const match = speechText.match(pattern);
             if (match && match.length >= 3) {
-              console.log('Found name in fallback pattern:', match[1], match[2]);
+              console.log('Found name in speech text using pattern:', pattern, match[1], match[2]);
               analysisResult.firstName = match[1];
               analysisResult.lastName = match[2];
               break;

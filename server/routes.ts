@@ -225,21 +225,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let firstName = '';
         let lastName = '';
         
-        // Pattern for "I met someone named X Y"
-        const metNamePattern = /(?:met|with|spoke|talked|called)(?:.*?)(?:named|called|is|was)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i;
-        const metMatch = speechText.match(metNamePattern);
-        if (metMatch && metMatch.length >= 3) {
-          firstName = metMatch[1];
-          lastName = metMatch[2];
-        }
+        // Define multiple patterns to match names in various contexts
+        const namePatterns = [
+          // Pattern for "I met someone named X Y"
+          /(?:met|with|spoke|talked|called)(?:.*?)(?:named|called|is|was)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for "X Y from Company"
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s+(?:from|at|with|of|works|at)/i,
+          // Pattern for "My name is X Y"
+          /(?:name is|name's|this is|I am|I'm)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for "spoke with X Y"
+          /(?:spoke|met|talked|contacted|exchanged)\s+(?:with|to)?\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for names at the beginning of sentences
+          /^([A-Z][a-z]+)\s+([A-Z][a-z]+)/im,
+          // Simple name pattern as fallback - look for any capitalized name pattern
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i
+        ];
         
-        // Fallback pattern - just find a name
-        if (!firstName && !lastName) {
-          const namePattern = /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i;
-          const nameMatch = speechText.match(namePattern);
-          if (nameMatch && nameMatch.length >= 3) {
-            firstName = nameMatch[1];
-            lastName = nameMatch[2];
+        // Try each pattern until we find a match
+        for (const pattern of namePatterns) {
+          const match = speechText.match(pattern);
+          if (match && match.length >= 3) {
+            firstName = match[1];
+            lastName = match[2];
+            console.log('Name match found using pattern:', pattern, firstName, lastName);
+            break;
           }
         }
         
@@ -383,19 +392,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           _fallback: true
         };
         
-        // Pattern for name after "called as"
-        const calledAsPattern = /called\s+(?:as\s+)?([A-Z][a-z]+)\s+([A-Z][a-z]+)/i;
-        const calledAsMatch = monologue.match(calledAsPattern);
-        if (calledAsMatch && calledAsMatch.length >= 3) {
-          extractedData.firstName = calledAsMatch[1];
-          extractedData.lastName = calledAsMatch[2];
-        } else {
-          // Try general name pattern
-          const namePattern = /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i;
-          const nameMatch = monologue.match(namePattern);
-          if (nameMatch && nameMatch.length >= 3) {
-            extractedData.firstName = nameMatch[1];
-            extractedData.lastName = nameMatch[2];
+        // Define multiple patterns to match names in various contexts
+        const namePatterns = [
+          // Pattern for "called as X Y"
+          /called\s+(?:as\s+)?([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for "I met with X Y" or "I spoke to X Y"
+          /(?:met with|spoke to|talked to|met|spoke with)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for "X Y from Company"
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s+(?:from|at|with|of|works|at)/i,
+          // Pattern for "My name is X Y" or "This is X Y"
+          /(?:name is|name's|this is|I am|I'm)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // Pattern for names at the beginning of sentences
+          /^([A-Z][a-z]+)\s+([A-Z][a-z]+)/im,
+          // Simple name pattern as fallback - any properly capitalized name
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i
+        ];
+        
+        // Try each pattern until we find a match
+        for (const pattern of namePatterns) {
+          const match = monologue.match(pattern);
+          if (match && match.length >= 3) {
+            extractedData.firstName = match[1];
+            extractedData.lastName = match[2];
+            console.log('Name match found using pattern:', pattern, extractedData.firstName, extractedData.lastName);
+            break;
           }
         }
         
