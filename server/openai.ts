@@ -9,24 +9,27 @@ export async function analyzeLeadData(speechText: string) {
     const prompt = `
     Extract lead information from this conversational speech where a salesperson is describing someone they met. The speech is natural and unstructured.
     
-    For example, if the person says "I met this sales woman called Harshita Chawla from Masters Union", you should extract:
+    Your task is specifically to identify and extract the name, company, title, contact info and other details. Pay special attention to phrases like "called as [Name]", "comes from [Company]", etc. Make sure to handle greetings or natural speech elements correctly - don't mistake "hi so" for a name.
+   
+    For example, if the text is "hi so I met this woman called as Harshita Chawla and she comes from this company called as Masters Union", you MUST extract:
     - firstName: "Harshita"
     - lastName: "Chawla"
     - company: "Masters Union"
     
     Speech text: "${speechText}"
     
-    Extract information carefully, looking for context clues like "I met", "spoke with", "from [company]", etc.
-    If information is not explicitly found, leave the field empty.
+    Extract information carefully, focusing on names introduced after phrases like "called", "named", etc. and companies after phrases like "from", "works at", etc.
+    
+    If information is not explicitly found, leave the field empty. DO NOT mistake greetings like "hi" or "hello" for names.
     
     Return a JSON object with these fields:
-    - firstName: The person's first name
-    - lastName: The person's last name
+    - firstName: The person's first name (mandatory - if not found, leave empty but don't use greeting words)
+    - lastName: The person's last name (mandatory - if not found, leave empty)
     - title: Their job title (if mentioned)
-    - company: Their company name
+    - company: Their company name (mandatory - if mentioned look for phrases like "company called")
     - email: Their email address
     - phone: Their phone number
-    - notes: Include the full original speech text and any additional context
+    - notes: Include the full original speech text
     - tags: An array of relevant tags from this list: ["Hot Lead", "Demo Needed", "Tech Summit", "Follow-up", "Enterprise"]. 
       Only include tags if there is clear evidence in the text.
     `;

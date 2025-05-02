@@ -189,15 +189,58 @@ const LeadForm = ({ initialData, speechText, detectedTags = [], onFormChange }: 
         }
       }
       
-      // Fix for when first name might be set incorrectly to "met this"
-      if (analysisResult.firstName === 'met this' || analysisResult.firstName === 'I met this' || analysisResult.firstName === 'so I met this') {
-        // Try to extract from notes again with the most specific pattern
+      // Check if first name contains common errors from mis-parsing
+      const errorPhrases = ['met this', 'I met this', 'so I met this', 'hi', 'hi so', 'so', 'hello', 'woman', 'man'];
+      if (errorPhrases.some(phrase => analysisResult.firstName?.toLowerCase().includes(phrase.toLowerCase()))) {
+        console.log('Detected error in first name parsing:', analysisResult.firstName);
+        
+        // Try to extract from notes again with the most specific pattern for names after "called as"
         const noteText = analysisResult.notes || '';
-        const nameMatch = noteText.match(/called\s+(?:as\s+)?([A-Z][a-z]+)\s+([A-Z][a-z]+)/i);
-        if (nameMatch && nameMatch.length >= 3) {
-          console.log('Found name in fallback regex:', nameMatch[1], nameMatch[2]);
-          analysisResult.firstName = nameMatch[1];
-          analysisResult.lastName = nameMatch[2];
+        
+        // Specific pattern for "called as Harshita Chawla"
+        const calledPattern = noteText.match(/called\s+(?:as\s+)?([A-Z][a-z]+)\s+([A-Z][a-z]+)/i);
+        if (calledPattern && calledPattern.length >= 3) {
+          console.log('Found name in specific "called as" pattern:', calledPattern[1], calledPattern[2]);
+          analysisResult.firstName = calledPattern[1];
+          analysisResult.lastName = calledPattern[2];
+        } else {
+          // Try other patterns if "called as" pattern failed
+          const otherPatterns = [
+            // Look for "named Harshita Chawla"
+            /(?:named|is|was)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+            // Any capitalized name pattern as fallback
+            /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i
+          ];
+          
+          for (const pattern of otherPatterns) {
+            const match = noteText.match(pattern);
+            if (match && match.length >= 3) {
+              console.log('Found name in fallback pattern:', match[1], match[2]);
+              analysisResult.firstName = match[1];
+              analysisResult.lastName = match[2];
+              break;
+            }
+          }
+        }
+      }
+      
+      // Check if company is empty but might be in the notes
+      if (!analysisResult.company && analysisResult.notes) {
+        const noteText = analysisResult.notes;
+        const companyPatterns = [
+          // Very specific Masters Union pattern
+          /company\s+called\s+(?:as\s+)?([A-Z][A-Za-z0-9\s&.]+?)(?:\.|,|\s\w+\s|$)/i,
+          // "from Masters Union"
+          /(?:from|at|with)\s+([A-Z][A-Za-z0-9\s&.]+?)(?:\.|,|\s\w+\s|$)/i
+        ];
+        
+        for (const pattern of companyPatterns) {
+          const match = noteText.match(pattern);
+          if (match && match[1]) {
+            analysisResult.company = match[1].trim();
+            console.log('Found company in notes:', analysisResult.company);
+            break;
+          }
         }
       }
       
