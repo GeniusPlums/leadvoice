@@ -89,15 +89,16 @@ const MonologueRecorder = ({ onExtractedData }: MonologueRecorderProps) => {
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscript += transcript;
+            finalTranscript += transcript + ' ';
           } else {
-            interimTranscript += transcript;
+            interimTranscript += transcript + ' ';
           }
         }
 
-        // Update the monologue with whatever we have so far
-        const fullText = monologue + finalTranscript + (interimTranscript ? ' ' + interimTranscript : '');
-        setMonologue(fullText);
+        // Combine current monologue with new transcripts
+        setMonologue(previousMonologue => {
+          return previousMonologue + finalTranscript + interimTranscript;
+        });
       };
 
       recognitionRef.current.onerror = (event: SpeechRecognitionEvent) => {
@@ -124,7 +125,7 @@ const MonologueRecorder = ({ onExtractedData }: MonologueRecorderProps) => {
         variant: "destructive",
       });
     }
-  }, [monologue, toast]);
+  }, [toast]);
 
   const startRecording = () => {
     if (recognitionRef.current) {
@@ -132,7 +133,8 @@ const MonologueRecorder = ({ onExtractedData }: MonologueRecorderProps) => {
         recognitionRef.current.start();
         setIsRecording(true);
         setStatus("Recording your monologue... keep talking");
-        // Don't clear any existing monologue
+        // Clear existing monologue when starting new recording
+        setMonologue("");
       } catch (error) {
         console.error("Failed to start recording:", error);
         toast({
