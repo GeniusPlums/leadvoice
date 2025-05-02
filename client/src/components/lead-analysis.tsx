@@ -1,5 +1,8 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface LeadAnalysisProps {
   leadData: {
@@ -15,8 +18,85 @@ interface LeadAnalysisProps {
 }
 
 const LeadAnalysis = ({ leadData }: LeadAnalysisProps) => {
-  // Calculate lead quality based on completeness of information
-  const calculateLeadQuality = () => {
+  // State for AI-processed analysis
+  const [leadQuality, setLeadQuality] = useState<number>(0);
+  const [intent, setIntent] = useState<string>('Analyzing...');
+  const [priority, setPriority] = useState<string>('Calculating lead quality...');
+  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [insights, setInsights] = useState<string>('');
+  const { toast } = useToast();
+  
+  // Use Gemini AI to analyze lead quality when leadData changes
+  useEffect(() => {
+    // Only analyze if we have minimum required information
+    if (!leadData.firstName || !leadData.lastName) {
+      // Calculate a basic score without AI if we don't have enough data
+      const basicScore = calculateBasicScore();
+      setLeadQuality(basicScore);
+      setIntent('Incomplete Data');
+      setPriority('Add more information to analyze');
+      return;
+    }
+    
+    // Don't analyze empty data
+    const hasContent = Object.values(leadData).some(val => 
+      (typeof val === 'string' && val.trim().length > 0) || 
+      (Array.isArray(val) && val.length > 0));
+      
+    if (!hasContent) return;
+    
+    const analyzeWithAI = async () => {
+      try {
+        setIsAnalyzing(true);
+        const response = await fetch('/api/ai/analyze-quality', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(leadData),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`AI analysis failed with status: ${response.status}`);
+        }
+        
+        const analysisResult = await response.json();
+        console.log('AI Lead Quality Analysis:', analysisResult);
+        
+        // Update state with AI-generated insights
+        if (analysisResult.score) setLeadQuality(Number(analysisResult.score));
+        if (analysisResult.intent) setIntent(analysisResult.intent);
+        if (analysisResult.priority) setPriority(analysisResult.priority);
+        if (analysisResult.insights) setInsights(analysisResult.insights);
+        
+      } catch (error) {
+        console.error('Error analyzing lead with AI:', error);
+        // Fallback to basic scoring
+        const basicScore = calculateBasicScore();
+        setLeadQuality(basicScore);
+        
+        // Fallback to basic intent detection
+        const basicIntent = detectBasicIntent();
+        setIntent(basicIntent.intent);
+        setPriority(basicIntent.priority);
+        
+        toast({
+          title: "AI Analysis Unavailable",
+          description: "Using basic analysis instead. Check console for details.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsAnalyzing(false);
+      }
+    };
+    
+    // Call AI analysis
+    analyzeWithAI();
+    
+  }, [leadData, toast]);
+  
+  // Basic score calculation as fallback
+  const calculateBasicScore = () => {
     const fields = [
       { name: 'firstName', weight: 15 },
       { name: 'lastName', weight: 15 },
@@ -42,10 +122,8 @@ const LeadAnalysis = ({ leadData }: LeadAnalysisProps) => {
     return score;
   };
   
-  const leadQuality = calculateLeadQuality();
-  
-  // Determine intent based on notes and tags
-  const detectIntent = () => {
+  // Basic intent detection as fallback
+  const detectBasicIntent = () => {
     const notes = leadData.notes?.toLowerCase() || '';
     const tags = leadData.tags || [];
     
@@ -67,8 +145,6 @@ const LeadAnalysis = ({ leadData }: LeadAnalysisProps) => {
     
     return { intent: 'General Inquiry', priority: 'Standard follow-up recommended' };
   };
-  
-  const { intent, priority } = detectIntent();
   
   // Simulate finding similar leads
   const findSimilarLeads = () => {
@@ -122,10 +198,28 @@ const LeadAnalysis = ({ leadData }: LeadAnalysisProps) => {
         <div>
           <h4 className="text-sm font-medium text-neutral-700">Detected Intent</h4>
           <div className="mt-1 text-sm">
-            <span className="font-medium text-green-600">{intent}</span> • 
-            <span className="text-neutral-600 ml-1">{priority}</span>
+            {isAnalyzing ? (
+              <div className="flex items-center">
+                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                <span className="text-gray-500">Analyzing with AI...</span>
+              </div>
+            ) : (
+              <>
+                <span className="font-medium text-green-600">{intent}</span> • 
+                <span className="text-neutral-600 ml-1">{priority}</span>
+              </>
+            )}
           </div>
         </div>
+        
+        {insights && (
+          <div>
+            <h4 className="text-sm font-medium text-neutral-700">AI Insights</h4>
+            <div className="mt-1 text-sm text-neutral-600 p-2 bg-blue-50 rounded">
+              {insights}
+            </div>
+          </div>
+        )}
         
         <div>
           <h4 className="text-sm font-medium text-neutral-700">Similar Leads</h4>

@@ -127,6 +127,30 @@ const LeadForm = ({ initialData, speechText, detectedTags = [], onFormChange }: 
       });
     }
   }, [detectedTags]);
+  
+  // Listen for AI analysis results from VoiceRecorder
+  useEffect(() => {
+    const handleAiAnalysis = (event: CustomEvent<any>) => {
+      const analysisResult = event.detail;
+      console.log('AI Analysis received:', analysisResult);
+      
+      // Set form values from AI analysis
+      if (analysisResult.firstName) setValue('firstName', analysisResult.firstName);
+      if (analysisResult.lastName) setValue('lastName', analysisResult.lastName);
+      if (analysisResult.title) setValue('title', analysisResult.title);
+      if (analysisResult.company) setValue('company', analysisResult.company);
+      if (analysisResult.email) setValue('email', analysisResult.email);
+      if (analysisResult.phone) setValue('phone', analysisResult.phone);
+      if (analysisResult.notes) setValue('notes', analysisResult.notes);
+    };
+    
+    // Add event listener for custom AI analysis event
+    document.addEventListener('ai-analysis', handleAiAnalysis as EventListener);
+    
+    return () => {
+      document.removeEventListener('ai-analysis', handleAiAnalysis as EventListener);
+    };
+  }, [setValue]);
 
   // Notify parent component of form changes
   useEffect(() => {
