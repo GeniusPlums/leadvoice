@@ -134,7 +134,54 @@ const LeadForm = ({ initialData, speechText, detectedTags = [], onFormChange }: 
       const analysisResult = event.detail;
       console.log('AI Analysis received:', analysisResult);
       
-      // Set form values from AI analysis
+      // Check if we're dealing with a fallback or AI result
+      const isFallbackResult = analysisResult._fallback === true;
+      
+      // Process conversational speech more thoroughly
+      if (analysisResult.notes && (!analysisResult.firstName || !analysisResult.lastName)) {
+        // Advanced name parsing for conversational speech
+        const speechText = analysisResult.notes;
+        
+        // Try to extract names with different patterns specific to conversational speech
+        const namePatterns = [
+          // "I met this sales woman called Harshita Chawla from..."
+          /(?:met|with|spoke to|talked to|contacted)(?:.*?)(?:called|named|by the name of|whose name is)\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)/i,
+          // "Harshita Chawla from Masters Union mentioned..."
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)\s+(?:from|at|with|of)\s+([A-Za-z\s&]+)/i,
+          // Standard name extraction as fallback
+          /([A-Z][a-z]+)\s+([A-Z][a-z]+)/i
+        ];
+        
+        // Try each pattern until we find a match
+        for (const pattern of namePatterns) {
+          const match = speechText.match(pattern);
+          if (match && match.length >= 3) {
+            analysisResult.firstName = match[1]; 
+            analysisResult.lastName = match[2];
+            break;
+          }
+        }
+        
+        // Try to extract company if not already present
+        if (!analysisResult.company) {
+          const companyPatterns = [
+            // "from Masters Union"
+            /(?:from|at|with|works at|works for|representing|employed by|employed at)\s+([A-Z][A-Za-z0-9\s&.]+?)(?:\.|,|\s\w+\s|$)/i,
+            // "Masters Union representative"
+            /([A-Z][A-Za-z0-9\s&.]+?)\s+(?:representative|rep|delegate|employee|staff)/i
+          ];
+          
+          for (const pattern of companyPatterns) {
+            const match = speechText.match(pattern);
+            if (match && match[1]) {
+              analysisResult.company = match[1].trim();
+              break;
+            }
+          }
+        }
+      }
+      
+      // Set form values from processed analysis result
       if (analysisResult.firstName) setValue('firstName', analysisResult.firstName);
       if (analysisResult.lastName) setValue('lastName', analysisResult.lastName);
       if (analysisResult.title) setValue('title', analysisResult.title);
