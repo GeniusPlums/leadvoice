@@ -1,0 +1,96 @@
+1. Overview
+1.1 Product Description
+LeadVoice is a web-based SaaS platform that transforms how salespeople manage leads from networking events. Using browser-based voice-to-text technology and AI-driven data parsing, LeadVoice enables users to capture business card details hands-free in seconds, even in noisy environments. A custom CRM stores, organizes, and prioritizes leads within the web app, allowing sales managers to allocate them via an intuitive dashboard. Features like offline caching, contextual tagging, and cross-domain applicability make LeadVoice a fast, reliable solution for B2B sales teams, recruiters, and event organizers, all hosted on Replit for easy access and demo.
+Tagline: Talk Today, Close Tomorrow.
+1.2 Problem Statement
+Salespeople collect dozens of business cards at networking events, spending 10–15 minutes per 10 cards manually entering data. This process is slow, error-prone, and risks losing leads due to misplaced cards or delayed follow-ups. Existing solutions (e.g., card scanners) require manual input or external CRM integrations, which are not allowed in this hackathon. LeadVoice solves this with a web app that captures leads via voice and manages them in a custom CRM, streamlining the entire workflow within a single platform.
+1.3 Value Proposition
+Speed: 80% faster lead capture (5 seconds vs. 90 seconds per lead).
+Accuracy: AI parsing reduces data entry errors by 95%.
+Efficiency: Custom CRM and allocation dashboard improve follow-up speed, boosting conversions by 10–20%.
+Accessibility: Web-based, no installation, runs on any device via Replit.
+1.4 Target Audience
+Primary: B2B sales teams at trade shows, conferences, and networking events.
+Secondary: Recruiters, medical reps, non-profit fundraisers.
+User Roles:
+Salespeople: Capture leads via voice in the web app.
+Sales Managers: Assign and track leads via dashboard.
+
+2. Goals & Objectives
+2.1 Hackathon Goals
+Innovation (20%): Showcase a novel voice-based web app with sentiment tagging.
+Technical Implementation (25%): Deliver a functional, well-documented prototype.
+Impact & Relevance (20%): Prove time savings and conversion boosts for sales teams.
+User Experience (15%): Create an intuitive, responsive web interface with accessibility.
+Presentation (10%): Deliver a clear 5-minute pitch with a live demo.
+Model Generalization (10%): Show applicability to recruitment, healthcare, and non-profits.
+2.2 Success Metrics
+Functional: Capture and parse 10 leads in <60 seconds with 95% accuracy.
+Technical: App runs without crashes, handles 50 leads, includes basic tests.
+User: 90% of demo users find the interface intuitive (via quick feedback).
+Impact: Demo shows 80% time savings vs. manual entry.
+Presentation: Pitch scores 8+/10 for clarity and demo quality.
+
+3. Features & Requirements
+3.1 Core Features
+Feature 1: Voice-to-Lead Capture
+Description: Salespeople record contact details (name, title, company, email, phone) via browser-based voice input; AI parses data into structured fields.
+Requirements:
+Voice input using Web Speech API (browser-native, no external service).
+Parse fields: First Name, Last Name, Title, Company, Email, Phone, Notes.
+Real-time transcription preview with edit button.
+Noise tolerance for event environments (basic filtering via Web Speech API).
+Priority: Must-have.
+Judging Alignment: Innovation (voice in web app), Technical (AI parsing), UX (ease of use).
+Feature 2: Custom CRM Database
+Description: A lightweight CRM within the web app stores leads with fields for contact details, tags, and status.
+Requirements:
+Store leads with fields: ID, Name, Title, Company, Email, Phone, Notes, Tags, Status (New, Assigned, Contacted), Assigned To, Event Name, Timestamp.
+Support CRUD operations (Create, Read, Update, Delete).
+Search/filter by name, company, or event.
+Export leads as CSV (downloadable from browser).
+Priority: Must-have.
+Judging Alignment: Technical (database), Impact (replaces external CRMs).
+Feature 3: Lead Allocation Dashboard
+Description: A dashboard view for managers to view, prioritize, and assign leads.
+Requirements:
+Display lead list with filters (e.g., event, status, tags).
+Assign leads via dropdown (predefined salesperson list).
+Show basic analytics (e.g., leads per event, status breakdown as a table).
+Update in real-time as new leads are added.
+Priority: Must-have.
+Judging Alignment: UX (dashboard design), Impact (efficient allocation).
+Feature 4: Contextual Tagging
+Description: Salespeople add voice notes (e.g., “Met at Tech Expo, needs demo”); basic keyword-based tagging for priority (e.g., “Hot” if “urgent” detected).
+Requirements:
+Voice note recording (<30 seconds) stored as text.
+Simple regex/keyword matching (e.g., “demo” → “Hot”).
+Manual tag editing (e.g., add “High Priority”).
+Priority: Should-have.
+Judging Alignment: Innovation (contextual AI), Impact (prioritization).
+Feature 5: Offline Caching
+Description: Cache leads locally in the browser if internet is lost; sync when online.
+Requirements:
+Store leads in browser’s localStorage or IndexedDB.
+Sync queue with basic conflict resolution (e.g., latest timestamp wins).
+Show “Offline” status in UI.
+Priority: Should-have.
+Judging Alignment: Technical (offline support), UX (reliability).
+Feature 6: Accessibility
+Description: Ensure the web app is accessible to all users.
+Requirements:
+ARIA labels for screen readers.
+High-contrast mode toggle.
+Keyboard navigation for all actions (e.g., start recording).
+Priority: Should-have.
+Judging Alignment: UX (inclusivity).
+Feature 7: Cross-Domain Applicability
+Description: Support non-sales use cases (e.g., recruitment) with customizable fields.
+Requirements:
+Allow field templates (e.g., “Skills” for recruitment).
+Demo one alternate use case (e.g., “Sarah Lee, Engineer, sarah@tech.com”).
+Priority: Nice-to-have.
+Judging Alignment: Generalization (versatility).
+
+
+
