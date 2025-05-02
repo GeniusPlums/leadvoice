@@ -1,9 +1,56 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic } from "lucide-react";
+import { Mic, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { analyzeContextualTags } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
+
+// Add TypeScript interfaces for the Web Speech API
+interface SpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+  resultIndex: number;
+  error?: any;
+}
+
+interface SpeechRecognitionResultList {
+  length: number;
+  item: (index: number) => SpeechRecognitionResult;
+  [index: number]: SpeechRecognitionResult;
+}
+
+interface SpeechRecognitionResult {
+  length: number;
+  item: (index: number) => SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionAlternative;
+  isFinal: boolean;
+}
+
+interface SpeechRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface SpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionEvent) => void;
+}
+
+interface SpeechRecognitionConstructor {
+  new (): SpeechRecognition;
+}
+
+// Declare global SpeechRecognition APIs
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  }
+}
 
 interface VoiceRecorderProps {
   onSpeechResult: (text: string) => void;
@@ -20,13 +67,24 @@ const VoiceRecorder = ({ onSpeechResult, onTagsDetected }: VoiceRecorderProps) =
   // Initialize speech recognition
   useEffect(() => {
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      recognitionRef.current = new SpeechRecognition();
+      // Ensure SpeechRecognition is defined with a type assertion
+      const SpeechRecognition = (window.SpeechRecognition || window.webkitSpeechRecognition) as SpeechRecognitionConstructor | undefined;
+      if (SpeechRecognition) {
+        recognitionRef.current = new SpeechRecognition();
+      } else {
+        setStatus("Speech recognition not supported");
+        toast({
+          title: "Not Supported",
+          description: "Speech recognition is not supported in this browser.",
+          variant: "destructive",
+        });
+        return;
+      }
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'en-US';
 
-      recognitionRef.current.onresult = (event) => {
+      recognitionRef.current.onresult = (event: SpeechRecognitionEvent) => {
         let interimTranscript = '';
         let finalTranscript = '';
 
@@ -44,7 +102,7 @@ const VoiceRecorder = ({ onSpeechResult, onTagsDetected }: VoiceRecorderProps) =
         onSpeechResult(fullText);
       };
 
-      recognitionRef.current.onerror = (event) => {
+      recognitionRef.current.onerror = (event: SpeechRecognitionEvent) => {
         console.error("Speech recognition error", event.error);
         setStatus("Error: " + event.error);
         toast({
@@ -88,22 +146,67 @@ const VoiceRecorder = ({ onSpeechResult, onTagsDetected }: VoiceRecorderProps) =
     }
   };
 
-  const stopRecording = () => {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const stopRecording = async () => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       setIsRecording(false);
       setStatus("Processing...");
       
-      // Process the text for tags
+      // Process the text with AI
       if (speechText) {
-        const tags = analyzeContextualTags(speechText);
-        onTagsDetected(tags);
-      }
-      
-      // Set status back to ready after a short delay
-      setTimeout(() => {
+        try {
+          setIsProcessing(true);
+
+          // Call the AI endpoint to analyze the speech
+          const response = await apiRequest(
+            'POST',
+            '/api/ai/analyze-speech',
+            { speechText }
+          );
+          
+          // Extract the analysis result
+          const analysisResult = await response.json();
+          
+          // Send detected tags to parent component
+          if (analysisResult.tags && Array.isArray(analysisResult.tags)) {
+            onTagsDetected(analysisResult.tags);
+          }
+          
+          // Call the original callback with the plain text
+          onSpeechResult(speechText);
+          
+          // Also provide the structured data from AI
+          if (typeof onSpeechResult === 'function') {
+            // This lets the form component know there's additional AI-analyzed data
+            const event = new CustomEvent('ai-analysis', { detail: analysisResult });
+            document.dispatchEvent(event);
+          }
+          
+          toast({
+            title: "AI Analysis Complete",
+            description: "Lead information extracted successfully.",
+          });
+        } catch (error) {
+          console.error("Error analyzing speech with AI:", error);
+          toast({
+            title: "Analysis Error",
+            description: "Failed to analyze speech with AI. Using basic processing instead.",
+            variant: "destructive",
+          });
+          
+          // Fallback to basic tag detection
+          const tags = speechText.toLowerCase().includes('urgent') ? ['Hot Lead'] : 
+                        speechText.toLowerCase().includes('demo') ? ['Demo Needed'] : [];
+          onTagsDetected(tags);
+        } finally {
+          setIsProcessing(false);
+          setStatus("Ready");
+        }
+      } else {
         setStatus("Ready");
-      }, 1000);
+      }
     }
   };
 
@@ -147,11 +250,16 @@ const VoiceRecorder = ({ onSpeechResult, onTagsDetected }: VoiceRecorderProps) =
         <div className="flex justify-center mt-2">
           <button 
             id="record-button" 
-            className={`relative h-24 w-24 flex items-center justify-center rounded-full bg-red-50 border-4 ${isRecording ? 'border-red-500 recording-pulse' : 'border-red-100'} focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2`}
-            aria-label={isRecording ? "Stop recording" : "Start recording"}
+            className={`relative h-24 w-24 flex items-center justify-center rounded-full bg-red-50 border-4 ${isRecording ? 'border-red-500 recording-pulse' : isProcessing ? 'border-blue-500 processing-pulse' : 'border-red-100'} focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2`}
+            aria-label={isRecording ? "Stop recording" : isProcessing ? "Processing..." : "Start recording"}
             onClick={toggleRecording}
+            disabled={isProcessing}
           >
-            <Mic className={`h-12 w-12 ${isRecording ? 'text-red-500' : 'text-red-400'}`} />
+            {isProcessing ? (
+              <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+            ) : (
+              <Mic className={`h-12 w-12 ${isRecording ? 'text-red-500' : 'text-red-400'}`} />
+            )}
           </button>
         </div>
         
@@ -177,14 +285,22 @@ const VoiceRecorder = ({ onSpeechResult, onTagsDetected }: VoiceRecorderProps) =
               setSpeechText("");
               stopRecording();
             }}
+            disabled={isProcessing}
           >
             Cancel
           </Button>
           <Button 
             onClick={handleSave}
-            disabled={!speechText.trim()}
+            disabled={!speechText.trim() || isProcessing}
           >
-            Save Lead
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              'Save Lead'
+            )}
           </Button>
         </div>
       </CardContent>
