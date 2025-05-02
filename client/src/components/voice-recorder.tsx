@@ -160,14 +160,21 @@ const VoiceRecorder = ({ onSpeechResult, onTagsDetected }: VoiceRecorderProps) =
           setIsProcessing(true);
 
           // Call the AI endpoint to analyze the speech
-          const response = await apiRequest(
-            'POST',
-            '/api/ai/analyze-speech',
-            { speechText }
-          );
+          const response = await fetch('/api/ai/analyze-speech', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ speechText })
+          });
+          
+          if (!response.ok) {
+            throw new Error(`AI analysis failed with status: ${response.status}`);
+          }
           
           // Extract the analysis result
           const analysisResult = await response.json();
+          console.log('AI Speech Analysis Result:', analysisResult);
           
           // Send detected tags to parent component
           if (analysisResult.tags && Array.isArray(analysisResult.tags)) {
