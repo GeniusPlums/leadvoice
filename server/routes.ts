@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { json2csv } from "json-2-csv";
 import { z } from "zod";
 import { leadInsertSchema, leadSelectSchema } from "@shared/schema";
+import { analyzeLeadData, analyzeLeadQuality } from "./ai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API routes
@@ -189,6 +190,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching sales team:', error);
       res.status(500).json({ message: 'Failed to fetch sales team' });
+    }
+  });
+
+  // Analyze speech text with AI
+  app.post(`${apiPrefix}/ai/analyze-speech`, async (req, res) => {
+    try {
+      const { speechText } = req.body;
+
+      if (!speechText || typeof speechText !== 'string') {
+        return res.status(400).json({
+          message: 'Missing or invalid speechText in request body',
+        });
+      }
+
+      const analysisResult = await analyzeLeadData(speechText);
+      res.json(analysisResult);
+    } catch (error) {
+      console.error('Error analyzing speech with AI:', error);
+      res.status(500).json({
+        message: 'Failed to analyze speech with AI',
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
+  // Analyze lead quality with AI
+  app.post(`${apiPrefix}/ai/analyze-quality`, async (req, res) => {
+    try {
+      const leadData = req.body;
+
+      if (!leadData || typeof leadData !== 'object') {
+        return res.status(400).json({
+          message: 'Missing or invalid lead data in request body',
+        });
+      }
+
+      const analysisResult = await analyzeLeadQuality(leadData);
+      res.json(analysisResult);
+    } catch (error) {
+      console.error('Error analyzing lead quality with AI:', error);
+      res.status(500).json({
+        message: 'Failed to analyze lead quality with AI',
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 
